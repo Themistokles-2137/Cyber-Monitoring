@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ incident.title }} - Indian Cyber Incident Monitor{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.incidents') }}">Incidents</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ incident.title|truncate(30) }}</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Incident Details -->
+        <div class="card mb-4 incident-card severity-{{ incident.severity.lower() if incident.severity else 'unknown' }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">{{ incident.title }}</h4>
+                <div class="confidence-indicator confidence-{{ 'high' if incident.confidence_score >= 0.7 else ('medium' if incident.confidence_score >= 0.4 else 'low') }}">
+                    {{ (incident.confidence_score * 100)|int }}%
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <div class="d-flex mb-3">
+                        {% if incident.sector %}
+                        <div class="me-3">
+                            <span class="badge badge-sector">
+                                <i class="fas fa-industry me-1"></i> {{ incident.sector }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if incident.severity %}
+                        <div class="me-3">
+                            <span class="severity-{{ incident.severity.lower() }}">
+                                <i class="fas fa-exclamation-triangle me-1"></i> {{ incident.severity }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        <div>
+                            <span class="text-muted">
+                                <i class="far fa-calendar-alt me-1"></i> 
+                                {{ incident.incident_date.strftime('%Y-%m-%d') if incident.incident_date else incident.discovered_date.strftime('%Y-%m-%d') }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {% if incident.tags %}
+                        <div class="mb-2">
+                            {% for tag in incident.tags %}
+                            <span class="badge bg-secondary me-1">{{ tag.name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Description -->
+                    <div class="mb-4">
+                        <h5>Description</h5>
+                        <div class="incident-description">
+                            {% if incident.description %}
+                            <p>{{ incident.description|nl2br }}</p>
+                            {% else %}
+                            <p class="text-muted">No detailed description available for this incident.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Attack Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Target</h5>
+                            {% if incident.target %}
+                            <p>{{ incident.target }}</p>
+                            {% else %}
+                            <p class="text-muted">Unknown target</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Threat Actor</h5>
+                            {% if incident.actor %}
+                            <p>{{ incident.actor }}</p>
+                            {% else %}
+                            <p class="text-muted">Unknown actor</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Technical Details -->
+                    <div class="mb-4">
+                        <h5>Technical Details</h5>
+                        {% if incident.technique %}
+                        <p>{{ incident.technique }}</p>
+                        {% else %}
+                        <p class="text-muted">No technical details available.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer text-muted">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        Source: 
+                        {% if incident.source %}
+                        <a href="{{ incident.source_url }}" target="_blank">{{ incident.source.name }}</a>
+                        {% else %}
+                        Unknown
+                        {% endif %}
+                    </div>
+                    <div>
+                        Discovered: {{ incident.discovered_date.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Incident Metadata -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Incident Information</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>ID</span>
+                        <span class="badge bg-secondary">{{ incident.id }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Sector</span>
+                        <span class="badge badge-sector">{{ incident.sector or 'Unknown' }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Severity</span>
+                        <span class="severity-{{ incident.severity.lower() if incident.severity else 'unknown' }}">
+                            {{ incident.severity or 'Unknown' }}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Incident Date</span>
+                        <span>{{ incident.incident_date.strftime('%Y-%m-%d') if incident.incident_date else 'Unknown' }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Discovered Date</span>
+                        <span>{{ incident.discovered_date.strftime('%Y-%m-%d') }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Confidence Score</span>
+                        <div class="progress" style="width: 60%;">
+                            <div class="progress-bar 
+                                {{ 'bg-success' if incident.confidence_score >= 0.7 else ('bg-warning' if incident.confidence_score >= 0.4 else 'bg-danger') }}" 
+                                role="progressbar" 
+                                style="width: {{ incident.confidence_score * 100 }}%;" 
+                                aria-valuenow="{{ incident.confidence_score * 100 }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100">
+                                {{ (incident.confidence_score * 100)|int }}%
+                            </div>
+                        </div>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>Verification Status</span>
+                        <span class="badge {{ 'bg-success' if incident.is_verified else 'bg-secondary' }}">
+                            {{ 'Verified' if incident.is_verified else 'Unverified' }}
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Source Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Source Information</h5>
+            </div>
+            <div class="card-body">
+                {% if incident.source %}
+                <p>
+                    <strong>Name:</strong> {{ incident.source.name }}
+                </p>
+                <p>
+                    <strong>Type:</strong> {{ incident.source.source_type }}
+                </p>
+                <p>
+                    <strong>Reliability:</strong>
+                </p>
+                <div class="reliability-indicator">
+                    <div class="reliability-fill" style="width: {{ incident.source.reliability_score * 100 }}%;"></div>
+                </div>
+                <p class="mt-3">
+                    <a href="{{ incident.source_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-external-link-alt me-1"></i> View Original Source
+                    </a>
+                </p>
+                {% else %}
+                <p class="text-muted">Source information not available.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Related Incidents -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Related Incidents</h5>
+            </div>
+            <div class="card-body">
+                {% if related %}
+                <ul class="list-group list-group-flush">
+                    {% for rel in related %}
+                    <li class="list-group-item px-0">
+                        <a href="{{ url_for('main.incident_detail', id=rel.id) }}" class="text-decoration-none">
+                            {{ rel.title }}
+                        </a>
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted">{{ rel.discovered_date.strftime('%Y-%m-%d') }}</small>
+                            <span class="severity-{{ rel.severity.lower() if rel.severity else 'unknown' }} small">
+                                {{ rel.severity or 'Unknown' }}
+                            </span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted">No related incidents found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Indian Cyber Incident Monitor{% endblock %}
+
+{% block extra_head %}
+<style>
+    .dashboard-card {
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line me-2"></i>Dashboard</h2>
+    <div>
+        <button id="refreshDashboard" class="btn btn-outline-info">
+            <i class="fas fa-sync-alt me-2"></i>Refresh Data
+        </button>
+    </div>
+</div>
+
+<!-- Enhanced Summary Cards -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-4">
+        <div class="stat-card interactive-hover neon-glow">
+            <div class="position-relative">
+                <div class="stat-number">{{ total_incidents }}</div>
+                <div class="stat-label">Total Incidents</div>
+                <div class="status-indicator status-active"></div>
+                <i class="fas fa-shield-alt position-absolute" style="top: 1rem; right: 1rem; font-size: 1.5rem; opacity: 0.3;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card dashboard-card h-100 bg-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Last 30 Days</h6>
+                        <h2 class="mb-0">{{ recent_count }}</h2>
+                    </div>
+                    <div class="rounded-circle bg-info bg-opacity-10 p-3">
+                        <i class="fas fa-calendar-alt fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card dashboard-card h-100 bg-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Critical/High</h6>
+                        <h2 class="mb-0">
+                            {% set critical_count = 0 %}
+                            {% for severity in severity_counts %}
+                                {% if severity[0] == 'Critical' or severity[0] == 'High' %}
+                                    {% set critical_count = critical_count + severity[1] %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ critical_count }}
+                        </h2>
+                    </div>
+                    <div class="rounded-circle bg-danger bg-opacity-10 p-3">
+                        <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card dashboard-card h-100 bg-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Top Sector</h6>
+                        <h2 class="mb-0 text-truncate" style="max-width: 150px;">
+                            {% if sector_counts %}
+                                {{ sector_counts[0][0] if sector_counts[0][0] else 'Unknown' }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </h2>
+                    </div>
+                    <div class="rounded-circle bg-warning bg-opacity-10 p-3">
+                        <i class="fas fa-industry fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card dashboard-card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Incident Trend</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary active" data-period="30">30 Days</button>
+                    <button type="button" class="btn btn-outline-secondary" data-period="60">60 Days</button>
+                    <button type="button" class="btn btn-outline-secondary" data-period="90">90 Days</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 mb-4">
+        <div class="card dashboard-card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Sectors</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="sectorChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-4 mb-4">
+        <div class="card dashboard-card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Severity</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="severityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-8 mb-4">
+        <div class="card dashboard-card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Top Sources</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 250px;">
+                    <canvas id="sourceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent High Severity Incidents -->
+<div class="row">
+    <div class="col-12">
+        <div class="card dashboard-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent High Severity Incidents</h5>
+                <a href="{{ url_for('main.incidents') }}?severity=Critical,High" class="btn btn-sm btn-outline-danger">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Incident</th>
+                                <th>Sector</th>
+                                <th>Severity</th>
+                                <th>Target</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for incident in high_severity_incidents %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('main.incident_detail', id=incident.id) }}" class="text-decoration-none">
+                                        {{ incident.title }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if incident.sector %}
+                                    <span class="badge badge-sector">{{ incident.sector }}</span>
+                                    {% else %}
+                                    <span class="text-muted">Unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if incident.severity %}
+                                    <span class="severity-{{ incident.severity.lower() }}">{{ incident.severity }}</span>
+                                    {% else %}
+                                    <span class="text-muted">Unknown</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ incident.target or 'Unknown' }}</td>
+                                <td>{{ incident.discovered_date.strftime('%Y-%m-%d') }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3">No high severity incidents found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize trend chart
+        const trendDates = {{ trend_dates|tojson }};
+        const trendCounts = {{ trend_counts|tojson }};
+        const trendChart = initTrendChart('trendChart', trendDates, trendCounts);
+        
+        // Initialize sector chart
+        const sectorLabels = [];
+        const sectorData = [];
+        {% for sector, count in sector_counts %}
+            sectorLabels.push("{{ sector or 'Unknown' }}");
+            sectorData.push({{ count }});
+        {% endfor %}
+        initSectorChart('sectorChart', sectorLabels, sectorData);
+        
+        // Initialize severity chart
+        const severityLabels = [];
+        const severityData = [];
+        {% for severity, count in severity_counts %}
+            severityLabels.push("{{ severity or 'Unknown' }}");
+            severityData.push({{ count }});
+        {% endfor %}
+        initSeverityChart('severityChart', severityLabels, severityData);
+        
+        // Initialize source chart
+        const sourceLabels = [];
+        const sourceData = [];
+        {% for source, count in source_counts %}
+            sourceLabels.push("{{ source }}");
+            sourceData.push({{ count }});
+        {% endfor %}
+        initSourceChart('sourceChart', sourceLabels, sourceData);
+        
+        // Set up dashboard event listeners
+        setupDashboardEvents(trendChart);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Search - Indian Cyber Incident Monitor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-search me-2"></i>Advanced Search</h2>
+</div>
+
+<!-- Search Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('main.search') }}" class="row g-3">
+            <div class="col-md-12 mb-3">
+                <label for="query" class="form-label">Search Query</label>
+                <input type="text" class="form-control form-control-lg" id="query" name="query" 
+                       placeholder="Search for incidents, targets, actors, or techniques..." value="{{ query }}">
+                <small class="form-text text-muted">Enter keywords to search across all incident data</small>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="sector" class="form-label">Sector</label>
+                <select class="form-select" id="sector" name="sector">
+                    <option value="all" {% if not current_sector %}selected{% endif %}>All Sectors</option>
+                    {% for sector in sectors %}
+                    <option value="{{ sector }}" {% if current_sector == sector %}selected{% endif %}>{{ sector }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="severity" class="form-label">Severity</label>
+                <select class="form-select" id="severity" name="severity">
+                    <option value="all" {% if not current_severity %}selected{% endif %}>All Severities</option>
+                    {% for severity in severities %}
+                    <option value="{{ severity }}" {% if current_severity == severity %}selected{% endif %}>{{ severity }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            
+            <div class="col-12 mt-4 text-center">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search me-2"></i>Search
+                </button>
+                <a href="{{ url_for('main.search') }}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-times me-2"></i>Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Search Results -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            {% if results %}
+            {{ results|length }} Search Results
+            {% else %}
+            Search Results
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if results %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Incident</th>
+                        <th>Sector</th>
+                        <th>Severity</th>
+                        <th>Target</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for incident in results %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('main.incident_detail', id=incident.id) }}" class="text-decoration-none fw-bold">
+                                {{ incident.title }}
+                            </a>
+                            <div class="text-muted small text-truncate" style="max-width: 400px;">
+                                {{ incident.description|truncate(100) if incident.description else "" }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if incident.sector %}
+                            <span class="badge badge-sector">{{ incident.sector }}</span>
+                            {% else %}
+                            <span class="text-muted">Unknown</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if incident.severity %}
+                            <span class="severity-{{ incident.severity.lower() }}">{{ incident.severity }}</span>
+                            {% else %}
+                            <span class="text-muted">Unknown</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ incident.target or 'Unknown' }}</td>
+                        <td>{{ incident.discovered_date.strftime('%Y-%m-%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            {% if query or current_sector != 'all' or current_severity != 'all' or start_date or end_date %}
+            <div class="p-5 text-center">
+                <i class="fas fa-search fa-3x mb-3 text-muted"></i>
+                <p class="lead">No incidents found matching your search criteria.</p>
+                <p class="text-muted">Try broadening your search terms or adjusting the filters.</p>
+                <a href="{{ url_for('main.search') }}" class="btn btn-outline-info mt-2">Clear Search</a>
+            </div>
+            {% else %}
+            <div class="p-5 text-center">
+                <i class="fas fa-search fa-3x mb-3 text-muted"></i>
+                <p class="lead">Use the search form above to find specific cyber incidents.</p>
+                <p class="text-muted">Search by keywords, sector, severity, or date range.</p>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-submit form when select inputs change
+        document.querySelectorAll('select').forEach(select => {
+            select.addEventListener('change', function() {
+                this.form.submit();
+            });
+        });
+        
+        // Validate date range
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+        
+        endDateInput.addEventListener('change', function() {
+            if (startDateInput.value && endDateInput.value) {
+                const startDate = new Date(startDateInput.value);
+                const endDate = new Date(endDateInput.value);
+                
+                if (endDate < startDate) {
+                    alert('End date cannot be earlier than start date.');
+                    endDateInput.value = '';
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

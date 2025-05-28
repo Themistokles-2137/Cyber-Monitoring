@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}Sources - Indian Cyber Incident Monitor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-database me-2"></i>Data Sources</h2>
+    
+    <div>
+        <form method="post" action="{{ url_for('main.initialize_sources') }}" class="d-inline">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-sync-alt me-2"></i>Initialize Default Sources
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Sources Overview -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Sources by Type</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="sourceTypeChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Recent Crawl Activity</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Source</th>
+                                <th>Status</th>
+                                <th>Items</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for crawl in recent_crawls %}
+                            <tr>
+                                <td>{{ crawl.source.name }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if crawl.status == 'success' %}bg-success
+                                        {% elif crawl.status == 'failed' %}bg-danger
+                                        {% else %}bg-warning{% endif %}">
+                                        {{ crawl.status }}
+                                    </span>
+                                </td>
+                                <td>{{ crawl.items_processed }}/{{ crawl.items_found }}</td>
+                                <td>{{ crawl.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-3">No recent crawl activity</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sources List -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">All Sources</h5>
+        
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                Filter by Type
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item active" href="#">All</a></li>
+                {% for source_type in source_types %}
+                <li><a class="dropdown-item" href="#">{{ source_type }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>URL</th>
+                        <th>Reliability</th>
+                        <th>Last Crawled</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for source in sources %}
+                    <tr>
+                        <td>{{ source.name }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if source.source_type == 'news' %}bg-info
+                                {% elif source.source_type == 'twitter' %}bg-primary
+                                {% elif source.source_type == 'pastesite' %}bg-warning
+                                {% elif source.source_type == 'cert' %}bg-success
+                                {% elif source.source_type == 'government' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {{ source.source_type }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ source.url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 250px;">
+                                {{ source.url }}
+                            </a>
+                        </td>
+                        <td>
+                            <div class="reliability-indicator">
+                                <div class="reliability-fill" style="width: {{ source.reliability_score * 100 }}%;"></div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if source.last_crawled %}
+                            {{ source.last_crawled.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                            <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="post" action="{{ url_for('main.crawl_source', id=source.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-sync-alt"></i> Crawl
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-3">
+                            <p>No sources found. Initialize default sources to get started.</p>
+                            <form method="post" action="{{ url_for('main.initialize_sources') }}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-sync-alt me-2"></i>Initialize Default Sources
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create source type distribution chart
+        const sourceTypeCtx = document.getElementById('sourceTypeChart').getContext('2d');
+        
+        // Count sources by type
+        const sourceTypes = {};
+        {% for source in sources %}
+            if (sourceTypes['{{ source.source_type }}']) {
+                sourceTypes['{{ source.source_type }}']++;
+            } else {
+                sourceTypes['{{ source.source_type }}'] = 1;
+            }
+        {% endfor %}
+        
+        const labels = Object.keys(sourceTypes);
+        const data = Object.values(sourceTypes);
+        
+        // Define colors for source types
+        const sourceTypeColors = {
+            'news': '#0dcaf0',         // info
+            'twitter': '#0d6efd',      // primary
+            'pastesite': '#ffc107',    // warning
+            'pastebin': '#ffc107',     // warning
+            'cert': '#198754',         // success
+            'government': '#dc3545',   // danger
+            'other': '#6c757d'         // secondary
+        };
+        
+        // Map source types to colors
+        const colors = labels.map(label => sourceTypeColors[label] || '#6c757d');
+        
+        new Chart(sourceTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: colors,
+                    borderWidth: 1,
+                    borderColor: '#343a40'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: '#c8c8c8'
+                        }
+                    },
+                    title: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+        // Set up filter functionality
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Update active state
+                document.querySelectorAll('.dropdown-item').forEach(el => {
+                    el.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                // Get the selected type
+                const selectedType = this.textContent.trim();
+                
+                // Filter the table rows
+                const rows = document.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const typeCell = row.querySelector('td:nth-child(2)');
+                    if (!typeCell) return;
+                    
+                    if (selectedType === 'All' || typeCell.textContent.trim() === selectedType) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}
